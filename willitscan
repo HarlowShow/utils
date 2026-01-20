@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+# Check if a port is in the current nmap top 1000 database
+# Usage: willitscan <port-number>
+PORT="$1"
+SERVICES="/usr/share/nmap/nmap-services"
+
+if [[ -z "$PORT" ]]; then
+  echo "Usage: willitscan <port>"
+  exit 1
+fi
+
+# Get the probability for the port
+PROB=$(grep -E "[[:space:]]${PORT}/tcp" "$SERVICES" | awk '{print $3}')
+
+if [[ -z "$PROB" ]]; then
+  echo "Port $PORT not found in nmap-services (very unlikely to be scanned by default)"
+  exit 0
+fi
+
+# Get the cutoff probability for top 1000 TCP ports
+CUTOFF=$(grep '/tcp' "$SERVICES" \
+  | sort -k3 -nr \
+  | sed -n '1000p' \
+  | awk '{print $3}')
+
+# Compare using awk (floating-point safe)
+RESULT=$(awk -v p="$PROB" -v c="$CUTOFF" 'BEGIN { print (p >= c) }')
+
+PERCENT=$(awk -v p="$PROB" 'BEGIN { printf "%.4f", p * 100 }')
+
+if [[ "$RESULT" -eq 1 ]]; then
+  echo "YES — port $PORT WILL be scanned by default"
+else
+  echo "NO — port $PORT will NOT be scanned by default"
+fi
+
+echo "Probability: $PROB ($PERCENT%)"
+echo "Top-1000 cutoff: $CUTOFF"
+
