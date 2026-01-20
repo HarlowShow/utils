@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# check if an nmap script is in the default (-sC) and provide it's description
+SCRIPT="$1"
+SCRIPTDIR="/usr/share/nmap/scripts"
+
+if [[ -z "$SCRIPT" ]]; then
+  echo "Usage: willitscript <script-name>"
+  exit 1
+fi
+
+[[ "$SCRIPT" != *.nse ]] && SCRIPT="${SCRIPT}.nse"
+SCRIPT_PATH="${SCRIPTDIR}/${SCRIPT}"
+
+if [[ ! -f "$SCRIPT_PATH" ]]; then
+  echo "Script not found: $SCRIPT"
+  exit 1
+fi
+
+# Categories
+CATEGORIES=$(grep -E '^categories' "$SCRIPT_PATH" | sed 's/.*=//')
+
+# Description
+DESCRIPTION=$(awk '
+  /^description *= *\[\[/ {flag=1; next}
+  /^\]\]/ {flag=0}
+  flag {print}
+' "$SCRIPT_PATH")
+
+if echo "$CATEGORIES" | grep -q '"default"'; then
+  echo "YES — runs with -sC (default scripts)"
+else
+  echo "NO — does NOT run with -sC"
+fi
+
+echo
+echo "Script: $SCRIPT"
+echo "Categories: $CATEGORIES"
+echo
+echo "Description:"
+echo "$DESCRIPTION"
+
